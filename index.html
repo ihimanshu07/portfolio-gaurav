@@ -1156,20 +1156,33 @@ Singh</h1>
       var lbl = btn.querySelector(".lbl");
       btn.addEventListener("click", function () {
         var email = mailText.textContent.trim();
+        function copied() {
+          lbl.textContent = "Copied";
+          statusEl.textContent = "Email copied";
+          setTimeout(function () { lbl.textContent = "Copy"; statusEl.textContent = ""; }, 2200);
+        }
         function selectFallback() {
+          var didCopy = false;
+          try {
+            var area = document.createElement("textarea");
+            area.value = email; area.setAttribute("readonly", "");
+            area.style.cssText = "position:fixed;opacity:0;pointer-events:none";
+            document.body.appendChild(area); area.select();
+            didCopy = document.execCommand("copy");
+            document.body.removeChild(area);
+          } catch (e) {}
+          if (didCopy) { copied(); return; }
           try {
             var rg = document.createRange(); rg.selectNodeContents(mailText);
             var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(rg);
           } catch (e) {}
           statusEl.textContent = "Select and copy the address";
         }
-        try {
-          navigator.clipboard.writeText(email).then(function () {
-            lbl.textContent = "Copied";
-            statusEl.textContent = "Email copied";
-            setTimeout(function () { lbl.textContent = "Copy"; statusEl.textContent = ""; }, 2200);
-          }, selectFallback);
-        } catch (e) { selectFallback(); }
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(email).then(copied, selectFallback);
+        } else {
+          selectFallback();
+        }
       });
     });
 
@@ -1182,14 +1195,14 @@ Singh</h1>
       function reveal(c) { c.classList.add("show", "in"); }
       var io = ("IntersectionObserver" in window) ? new IntersectionObserver(function (es) {
         es.forEach(function (en) { if (en.isIntersecting && vault.classList.contains("open")) { reveal(en.target); io.unobserve(en.target); } });
-      }, { threshold: 0.18 }) : null;
+      }, { rootMargin: "0px 0px 18% 0px", threshold: 0.01 }) : null;
       function setOpen(o) {
         vault.classList.toggle("open", o);
         root.classList.toggle("poster-on", o);
         btn.setAttribute("aria-expanded", o ? "true" : "false");
         lbl.textContent = o ? "Close" : "Open";
         if (o) {
-          cards.forEach(function (c) { if (io) io.observe(c); else reveal(c); });
+          cards.forEach(function (c) { reveal(c); });
           if (!reduce) setTimeout(function () {
             var t = btn.getBoundingClientRect().top;
             if (t > 220 || t < 0) window.scrollTo({ top: (window.pageYOffset || 0) + t - 90, behavior: "smooth" });
