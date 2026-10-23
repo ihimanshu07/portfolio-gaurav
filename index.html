@@ -1192,10 +1192,16 @@ Singh</h1>
       var btn = document.getElementById("folder");
       var lbl = btn.querySelector(".lbl");
       var cards = Array.prototype.slice.call(vault.querySelectorAll(".proj"));
-      function reveal(c) { c.classList.add("show", "in"); }
-      var io = ("IntersectionObserver" in window) ? new IntersectionObserver(function (es) {
-        es.forEach(function (en) { if (en.isIntersecting && vault.classList.contains("open")) { reveal(en.target); io.unobserve(en.target); } });
-      }, { rootMargin: "0px 0px 18% 0px", threshold: 0.01 }) : null;
+      function reveal(c) {
+        c.classList.add("show", "in");
+        /* Project copy is initially observed while this collapsible panel has no box.
+           Reveal it from the panel lifecycle instead of waiting for an impossible intersection. */
+        c.querySelectorAll(".ta").forEach(function (el) { el.classList.add("ta-in"); });
+      }
+      function conceal(c) {
+        c.classList.remove("show", "in");
+        c.querySelectorAll(".ta").forEach(function (el) { el.classList.remove("ta-in"); });
+      }
       function setOpen(o) {
         vault.classList.toggle("open", o);
         root.classList.toggle("poster-on", o);
@@ -1208,7 +1214,7 @@ Singh</h1>
             if (t > 220 || t < 0) window.scrollTo({ top: (window.pageYOffset || 0) + t - 90, behavior: "smooth" });
           }, 120);
         } else {
-          cards.forEach(function (c) { if (io) io.unobserve(c); c.classList.remove("show", "in"); });
+          cards.forEach(conceal);
         }
       }
       btn.addEventListener("click", function () { setOpen(!vault.classList.contains("open")); });
@@ -1622,7 +1628,7 @@ Singh</h1>
       var dustBox = fig && fig.querySelector(".p-dust");
       var ring = fig && fig.querySelector(".p-ring .bar");
       if (!fig || !pf || !pimg || !imgs || imgs.length < 2 || !dustBox) return;
-      var HOLD = 1500, cur = 0, busy = false, down = false, held = false, raf = 0, t0 = 0, sx = 0, sy = 0;
+      var HOLD = 1500, cur = 0, busy = false, down = false, held = false, raf = 0, t0 = 0, sx = 0, sy = 0, lastPointerUp = -Infinity;
 
       function setP(p) {
         if (ring) ring.style.strokeDashoffset = (188.5 * (1 - p)).toFixed(1);
@@ -1720,12 +1726,19 @@ Singh</h1>
       });
       pf.addEventListener("pointerup", function (e) {
         var wasDown = down, completedHold = held;
+        lastPointerUp = performance.now();
         if (pf.releasePointerCapture && e.pointerId !== undefined) {
           try { pf.releasePointerCapture(e.pointerId); } catch (error) {}
         }
         stop();
         /* A normal tap/click is the reliable default; holding retains the dust treatment. */
         if (wasDown && !completedHold && !busy) swap();
+      });
+      pf.addEventListener("click", function () {
+        /* Some desktop/iPad browsers deliver a click without a usable pointerup.
+           Ignore the click synthesized from the successful pointer interaction. */
+        if (performance.now() - lastPointerUp < 80 || busy) return;
+        swap();
       });
       pf.addEventListener("pointercancel", function (e) {
         if (pf.releasePointerCapture && e.pointerId !== undefined) {
@@ -1855,7 +1868,7 @@ Singh</h1>
           targets.push(el);
         });
       }
-      mark(".icons"); mark(".hi"); mark(".stack p");
+      mark(".icons"); mark("header .hi"); mark(".stack p");
       mark(".label", "rv-wipe"); mark("#folder");
       mark(".cta-min"); mark("footer");
 
